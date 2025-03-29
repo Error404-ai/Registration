@@ -33,6 +33,9 @@ const RegistrationForm = () => {
     studentNumber: '',
   });
 
+  // Get the reCAPTCHA site key from environment variables
+  const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -196,7 +199,7 @@ const RegistrationForm = () => {
 
           <div className="mt-8 flex justify-center scale-90 sm:scale-100">
             <ReCAPTCHA
-              sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+              sitekey={RECAPTCHA_SITE_KEY}
               onChange={handleRecaptchaChange}
             />
           </div>
