@@ -3,17 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import ReCAPTCHA from 'react-google-recaptcha';
 
+// Updated interface to match backend schema
 interface FormData {
-  fullName: string;
+  name: string;
   email: string;
   phone: string;
   year: string;
-  branch: string;
-  registeredFor: string;
+  branch_name: string;
+  registration_type: string;
   gender: string;
-  isHosteller: string;
-  hackerRank: string;
-  studentNumber: string;
+  hosteller: string;
+  hackerrank: string;
+  student_no: string;
 }
 
 const RegistrationForm = () => {
@@ -21,16 +22,16 @@ const RegistrationForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
-    fullName: '',
+    name: '',
     email: '',
     phone: '',
     year: '',
-    branch: '',
-    registeredFor: '',
+    branch_name: '',
+    registration_type: '',
     gender: '',
-    isHosteller: '',
-    hackerRank: '',
-    studentNumber: '',
+    hosteller: '',
+    hackerrank: '',
+    student_no: '',
   });
 
   // Get the reCAPTCHA site key from environment variables
@@ -46,19 +47,26 @@ const RegistrationForm = () => {
 
     try {
       setIsLoading(true);
+      // Create the payload with the correct field names
+      const payload = {
+        ...formData,
+        recaptcha_token: recaptchaToken,
+      };
+
+      console.log('Sending payload:', payload);
+      
       const response = await fetch('https://api.programming-club.tech/api/register/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          recaptchaToken,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        throw new Error('Registration failed');
+        const errorData = await response.json().catch(() => null);
+        console.error('Server error response:', errorData);
+        throw new Error(`Registration failed: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -73,7 +81,22 @@ const RegistrationForm = () => {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    
+    // Map form field names to API field names
+    const fieldMapping: Record<string, keyof FormData> = {
+      fullName: 'name',
+      studentNumber: 'student_no',
+      branch: 'branch_name',
+      registeredFor: 'registration_type',
+      isHosteller: 'hosteller',
+      hackerRank: 'hackerrank',
+    };
+    
+    // Use mapped field name if it exists, otherwise use original name
+    const apiFieldName = fieldMapping[name] || name as keyof FormData;
+    
+    setFormData(prev => ({ ...prev, [apiFieldName]: value }));
   };
 
   const handleRecaptchaChange = (token: string | null) => {
@@ -124,6 +147,8 @@ const RegistrationForm = () => {
                 options: [
                   { value: '', label: 'Select Branch' },
                   { value: 'CSE', label: 'CSE' },
+                  { value: 'CSE(AIML)', label: 'CSE(AIML)' },
+                  { value: 'CSE(DS)', label: 'CSE(DS)' },
                   { value: 'IT', label: 'IT' },
                   { value: 'ECE', label: 'ECE' },
                   { value: 'ME', label: 'ME' },
@@ -136,7 +161,7 @@ const RegistrationForm = () => {
                 type: 'select',
                 options: [
                   { value: '', label: 'Select Option' },
-                  { value: 'workshop_contest', label: 'Workshop + Contest (Chargeable)' },
+                  { value: 'contest_workshop', label: 'Workshop + Contest (Chargeable)' },
                   { value: 'contest', label: 'Contest Only (Free)' }
                 ]
               },
@@ -146,9 +171,9 @@ const RegistrationForm = () => {
                 type: 'select',
                 options: [
                   { value: '', label: 'Select Gender' },
-                  { value: 'male', label: 'Male' },
-                  { value: 'female', label: 'Female' },
-                  { value: 'other', label: 'Other' }
+                  { value: 'Male', label: 'Male' },
+                  { value: 'Female', label: 'Female' },
+                  { value: 'Other', label: 'Other' }
                 ]
               },
               {
@@ -157,8 +182,8 @@ const RegistrationForm = () => {
                 type: 'select',
                 options: [
                   { value: '', label: 'Select Option' },
-                  { value: 'yes', label: 'Yes' },
-                  { value: 'no', label: 'No' }
+                  { value: 'True', label: 'Yes' },
+                  { value: 'False', label: 'No' }
                 ]
               },
               { label: 'HackerRank Profile', name: 'hackerRank', type: 'text', placeholder: 'Your HackerRank username' },
@@ -173,7 +198,6 @@ const RegistrationForm = () => {
                     name={field.name}
                     required
                     className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 bg-purple-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
-                    value={formData[field.name as keyof FormData]}
                     onChange={handleChange}
                   >
                     {field.options?.map((option, optIndex) => (
@@ -188,7 +212,6 @@ const RegistrationForm = () => {
                     name={field.name}
                     required
                     className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 bg-purple-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
-                    value={formData[field.name as keyof FormData]}
                     onChange={handleChange}
                     placeholder={field.placeholder}
                   />
