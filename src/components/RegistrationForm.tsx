@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import ReCAPTCHA from 'react-google-recaptcha';
 
-// Form UI interface - what users interact with
-interface FormUI {
+interface FormData {
   fullName: string;
   email: string;
   phone: string;
@@ -17,28 +16,11 @@ interface FormUI {
   studentNumber: string;
 }
 
-// Backend API interface - the schema expected by the API
-interface ApiPayload {
-  name: string;
-  email: string;
-  phone: string;
-  year: string;
-  branch_name: string;
-  registration_type: string;
-  gender: string;
-  hosteller: string;
-  hackerrank: string;
-  student_no: string;
-  recaptcha_token: string;
-}
-
 const RegistrationForm = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
-  
-  // Initialize with empty form values
-  const [formData, setFormData] = useState<FormUI>({
+  const [formData, setFormData] = useState<FormData>({
     fullName: '',
     email: '',
     phone: '',
@@ -54,23 +36,6 @@ const RegistrationForm = () => {
   // Get the reCAPTCHA site key from environment variables
   const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
-  // Transform UI form data to API payload format
-  const createApiPayload = (): ApiPayload => {
-    return {
-      name: formData.fullName,
-      email: formData.email,
-      phone: formData.phone,
-      year: formData.year,
-      branch_name: formData.branch,
-      registration_type: formData.registeredFor,
-      gender: formData.gender,
-      hosteller: formData.isHosteller,
-      hackerrank: formData.hackerRank,
-      student_no: formData.studentNumber,
-      recaptcha_token: recaptchaToken || '',
-    };
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -81,48 +46,34 @@ const RegistrationForm = () => {
 
     try {
       setIsLoading(true);
-      
-      // Create API payload with the correct field names
-      const payload = createApiPayload();
-      
-      console.log('Sending payload:', payload);
-      
       const response = await fetch('https://api.programming-club.tech/api/register/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...formData,
+          recaptchaToken,
+        }),
       });
 
-      const responseText = await response.text();
-      console.log('Raw response:', responseText);
-      
       if (!response.ok) {
-        let errorMessage = `Server returned ${response.status}: ${response.statusText}`;
-        try {
-          const errorData = JSON.parse(responseText);
-          errorMessage += ` - ${JSON.stringify(errorData)}`;
-        } catch (e) {
-          // If it's not valid JSON, use the raw text
-          errorMessage += ` - ${responseText}`;
-        }
-        throw new Error(errorMessage);
+        throw new Error('Registration failed');
       }
 
-      console.log('Registration successful!');
+      const data = await response.json();
+      console.log('Registration successful:', data);
       navigate('/success');
     } catch (error) {
       console.error('Registration error:', error);
-      alert(`Registration failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert('Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleRecaptchaChange = (token: string | null) => {
@@ -173,8 +124,6 @@ const RegistrationForm = () => {
                 options: [
                   { value: '', label: 'Select Branch' },
                   { value: 'CSE', label: 'CSE' },
-                  { value: 'CSE(AIML)', label: 'CSE(AIML)' },
-                  { value: 'CSE(DS)', label: 'CSE(DS)' },
                   { value: 'IT', label: 'IT' },
                   { value: 'ECE', label: 'ECE' },
                   { value: 'ME', label: 'ME' },
@@ -187,7 +136,7 @@ const RegistrationForm = () => {
                 type: 'select',
                 options: [
                   { value: '', label: 'Select Option' },
-                  { value: 'contest_workshop', label: 'Workshop + Contest (Chargeable)' },
+                  { value: 'workshop_contest', label: 'Workshop + Contest (Chargeable)' },
                   { value: 'contest', label: 'Contest Only (Free)' }
                 ]
               },
@@ -197,9 +146,9 @@ const RegistrationForm = () => {
                 type: 'select',
                 options: [
                   { value: '', label: 'Select Gender' },
-                  { value: 'Male', label: 'Male' },
-                  { value: 'Female', label: 'Female' },
-                  { value: 'Other', label: 'Other' }
+                  { value: 'male', label: 'Male' },
+                  { value: 'female', label: 'Female' },
+                  { value: 'other', label: 'Other' }
                 ]
               },
               {
@@ -208,8 +157,8 @@ const RegistrationForm = () => {
                 type: 'select',
                 options: [
                   { value: '', label: 'Select Option' },
-                  { value: 'True', label: 'Yes' },
-                  { value: 'False', label: 'No' }
+                  { value: 'yes', label: 'Yes' },
+                  { value: 'no', label: 'No' }
                 ]
               },
               { label: 'HackerRank Profile', name: 'hackerRank', type: 'text', placeholder: 'Your HackerRank username' },
@@ -224,6 +173,7 @@ const RegistrationForm = () => {
                     name={field.name}
                     required
                     className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 bg-purple-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
+                    value={formData[field.name as keyof FormData]}
                     onChange={handleChange}
                   >
                     {field.options?.map((option, optIndex) => (
@@ -238,6 +188,7 @@ const RegistrationForm = () => {
                     name={field.name}
                     required
                     className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 bg-purple-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
+                    value={formData[field.name as keyof FormData]}
                     onChange={handleChange}
                     placeholder={field.placeholder}
                   />
