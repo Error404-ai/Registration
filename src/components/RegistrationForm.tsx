@@ -49,9 +49,9 @@ const RegistrationForm = () => {
       return false;
     }
 
-    // Student number validation (8 digits)
-    if (!/^\d{8}$/.test(formData.student_no)) {
-      alert('Please enter a valid 8-digit student number');
+    // Student number validation (7 or 8 digits)
+    if (!/^\d{7,8}$/.test(formData.student_no)) {
+      alert('Please enter a valid 7 or 8-digit student number');
       return false;
     }
 
@@ -128,7 +128,7 @@ const RegistrationForm = () => {
       return;
     }
 
-    // Format student number to remove any non-digit characters
+    // Format student number to remove any non-digit characters and limit to 8 digits
     if (name === 'student_no') {
       const formattedValue = value.replace(/\D/g, '').slice(0, 8);
       setFormData({ ...formData, [name]: formattedValue });
