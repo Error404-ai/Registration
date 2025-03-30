@@ -203,7 +203,7 @@ const RegistrationForm = () => {
                 type: 'select',
                 options: [
                   { value: '', label: 'Select Option' },
-                  { value: 'workshop_contest', label: 'Workshop + Contest (Chargeable)' },
+                  { value: 'workshop_contest', label: 'Workshop + Contest' },
                   { value: 'contest', label: 'Contest Only (Free)' }
                 ]
               },
