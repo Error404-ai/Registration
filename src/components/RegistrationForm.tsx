@@ -143,14 +143,14 @@ const RegistrationForm = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-white py-6 sm:py-8 md:py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-red-50 to-gray-100 py-6 sm:py-8 md:py-12 px-4 sm:px-6 lg:px-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="max-w-4xl mx-auto"
       >
         <div className="text-center mb-8 sm:mb-12">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-purple-600 mb-2 sm:mb-4 animate-pulse">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-red-700 mb-2 sm:mb-4 animate-pulse">
             INCLUDE 4.0 REGISTRATION
           </h1>
           <p className="text-lg sm:text-xl text-gray-600 italic">Organized by Programming Club, AKGEC</p>
@@ -158,7 +158,7 @@ const RegistrationForm = () => {
 
         <motion.form
           onSubmit={handleSubmit}
-          className="bg-white shadow-2xl rounded-3xl p-6 sm:p-8 md:p-12"
+          className="bg-white shadow-2xl rounded-3xl p-6 sm:p-8 md:p-12 border border-red-200"
           initial={{ scale: 0.95 }}
           animate={{ scale: 1 }}
           transition={{ duration: 0.3 }}
@@ -239,7 +239,7 @@ const RegistrationForm = () => {
                   <select
                     name={field.name}
                     required
-                    className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 bg-purple-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
+                    className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 bg-red-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
                     value={formData[field.name as keyof FormData]}
                     onChange={handleChange}
                   >
@@ -254,7 +254,7 @@ const RegistrationForm = () => {
                     type={field.type}
                     name={field.name}
                     required
-                    className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 bg-purple-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
+                    className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 bg-red-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
                     value={formData[field.name as keyof FormData]}
                     onChange={handleChange}
                     placeholder={field.placeholder}
@@ -278,8 +278,8 @@ const RegistrationForm = () => {
               type="submit"
               disabled={isLoading || !recaptchaToken}
               className={`w-full py-3 sm:py-4 px-4 sm:px-6 border border-transparent rounded-xl shadow-sm text-lg sm:text-xl font-medium text-white 
-                ${isLoading || !recaptchaToken ? 'bg-purple-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'}
-                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors`}
+                ${isLoading || !recaptchaToken ? 'bg-red-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}
+                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors`}
             >
               {isLoading ? 'Registering...' : 'Register Now'}
             </motion.button>
