@@ -4,16 +4,16 @@ import { motion } from 'framer-motion';
 import ReCAPTCHA from 'react-google-recaptcha';
 
 interface FormData {
-  fullName: string;
-  email: string;
+  name: string;
+  branch_name: string;
+  student_no: string;
+  hackerrank: string;
   phone: string;
-  year: string;
-  branch: string;
-  registeredFor: string;
+  email: string;
   gender: string;
-  isHosteller: string;
-  hackerRank: string;
-  studentNumber: string;
+  hosteller: string;
+  year: string;
+  registration_type: string;
 }
 
 const RegistrationForm = () => {
@@ -21,20 +21,48 @@ const RegistrationForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
-    fullName: '',
-    email: '',
+    name: '',
+    branch_name: '',
+    student_no: '',
+    hackerrank: '',
     phone: '',
-    year: '',
-    branch: '',
-    registeredFor: '',
+    email: '',
     gender: '',
-    isHosteller: '',
-    hackerRank: '',
-    studentNumber: '',
+    hosteller: '',
+    year: '',
+    registration_type: ''
   });
 
   // Get the reCAPTCHA site key from environment variables
   const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+
+  const validateForm = () => {
+    // Email validation for AKGEC domain
+    if (!formData.email.endsWith('@akgec.ac.in')) {
+      alert('Please use your AKGEC email address');
+      return false;
+    }
+
+    // Phone number validation (10 digits)
+    if (!/^\d{10}$/.test(formData.phone)) {
+      alert('Please enter a valid 10-digit phone number');
+      return false;
+    }
+
+    // Student number validation (8 digits)
+    if (!/^\d{8}$/.test(formData.student_no)) {
+      alert('Please enter a valid 8-digit student number');
+      return false;
+    }
+
+    // HackerRank username validation (no spaces or special characters)
+    if (!/^[a-zA-Z0-9_-]+$/.test(formData.hackerrank)) {
+      alert('Please enter a valid HackerRank username (no spaces or special characters)');
+      return false;
+    }
+
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,36 +72,64 @@ const RegistrationForm = () => {
       return;
     }
 
+    if (!validateForm()) {
+      return;
+    }
+
+    // Transform the data to match API schema
+    const apiData = {
+      ...formData,
+      recaptcha_token: recaptchaToken,
+      hosteller: formData.hosteller === 'yes' ? 'True' : 'False',
+      gender: formData.gender.charAt(0).toUpperCase() + formData.gender.slice(1),
+      registration_type: formData.registration_type === 'workshop_contest' ? 'contest_workshop' : 'contest'
+    };
+
     try {
       setIsLoading(true);
       const response = await fetch('https://api.programming-club.tech/api/register/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
-        body: JSON.stringify({
-          ...formData,
-          recaptchaToken,
-        }),
+        body: JSON.stringify(apiData),
       });
 
       if (!response.ok) {
-        throw new Error('Registration failed');
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || 'Registration failed');
       }
 
       const data = await response.json();
       console.log('Registration successful:', data);
       navigate('/success');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Registration error:', error);
-      alert('Registration failed. Please try again.');
+      alert(error.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    
+    // Format phone number to remove any non-digit characters
+    if (name === 'phone') {
+      const formattedValue = value.replace(/\D/g, '').slice(0, 10);
+      setFormData({ ...formData, [name]: formattedValue });
+      return;
+    }
+
+    // Format student number to remove any non-digit characters
+    if (name === 'student_no') {
+      const formattedValue = value.replace(/\D/g, '').slice(0, 8);
+      setFormData({ ...formData, [name]: formattedValue });
+      return;
+    }
+
+    setFormData({ ...formData, [name]: value });
   };
 
   const handleRecaptchaChange = (token: string | null) => {
@@ -102,11 +158,10 @@ const RegistrationForm = () => {
           transition={{ duration: 0.3 }}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-12 gap-y-6 md:gap-y-8">
-            {/* Form fields with responsive spacing and sizing */}
             {[
-              { label: 'Full Name', name: 'fullName', type: 'text', placeholder: 'Enter your full name' },
-              { label: 'Email', name: 'email', type: 'email', placeholder: 'your.email@example.com' },
-              { label: 'Phone', name: 'phone', type: 'tel', placeholder: 'Enter your phone number' },
+              { label: 'Full Name', name: 'name', type: 'text', placeholder: 'Enter your full name' },
+              { label: 'Email', name: 'email', type: 'email', placeholder: 'your.email@akgec.ac.in' },
+              { label: 'Phone', name: 'phone', type: 'tel', placeholder: '10-digit phone number' },
               { 
                 label: 'Year', 
                 name: 'year', 
@@ -119,10 +174,11 @@ const RegistrationForm = () => {
               },
               {
                 label: 'Branch',
-                name: 'branch',
+                name: 'branch_name',
                 type: 'select',
                 options: [
                   { value: '', label: 'Select Branch' },
+                  { value: 'CSE(AIML)', label: 'CSE (AIML)' },
                   { value: 'CSE', label: 'CSE' },
                   { value: 'IT', label: 'IT' },
                   { value: 'ECE', label: 'ECE' },
@@ -132,7 +188,7 @@ const RegistrationForm = () => {
               },
               {
                 label: 'Registration Type',
-                name: 'registeredFor',
+                name: 'registration_type',
                 type: 'select',
                 options: [
                   { value: '', label: 'Select Option' },
@@ -153,7 +209,7 @@ const RegistrationForm = () => {
               },
               {
                 label: 'Are you a Hosteller?',
-                name: 'isHosteller',
+                name: 'hosteller',
                 type: 'select',
                 options: [
                   { value: '', label: 'Select Option' },
@@ -161,8 +217,8 @@ const RegistrationForm = () => {
                   { value: 'no', label: 'No' }
                 ]
               },
-              { label: 'HackerRank Profile', name: 'hackerRank', type: 'text', placeholder: 'Your HackerRank username' },
-              { label: 'Student Number', name: 'studentNumber', type: 'text', placeholder: 'Enter your student number' }
+              { label: 'HackerRank Profile', name: 'hackerrank', type: 'text', placeholder: 'Your HackerRank username' },
+              { label: 'Student Number', name: 'student_no', type: 'text', placeholder: '8-digit student number' }
             ].map((field, index) => (
               <div key={index} className="space-y-1.5">
                 <label className="block text-base sm:text-lg font-medium text-gray-700">
