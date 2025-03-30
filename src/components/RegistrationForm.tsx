@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import ReCAPTCHA from 'react-google-recaptcha';
+import { X } from 'lucide-react';
 
 interface FormData {
   name: string;
@@ -16,10 +17,47 @@ interface FormData {
   registration_type: string;
 }
 
+interface ToastProps {
+  message: string;
+  onClose: () => void;
+}
+
+// Toast component for displaying errors
+const ErrorToast: React.FC<ToastProps> = ({ message, onClose }) => {
+  // Auto-dismiss after 5 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 5000);
+    
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="fixed top-4 right-4 z-50 bg-red-600 text-white p-4 rounded-lg shadow-lg max-w-md"
+    >
+      <div className="flex items-start justify-between">
+        <p className="mr-4">{message}</p>
+        <button 
+          onClick={onClose}
+          className="text-white hover:text-red-100"
+        >
+          <X size={18} />
+        </button>
+      </div>
+    </motion.div>
+  );
+};
+
 const RegistrationForm = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
     name: '',
     branch_name: '',
@@ -36,28 +74,42 @@ const RegistrationForm = () => {
   // Get the reCAPTCHA site key from environment variables
   const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
+  // Reset registration_type when year changes
+  useEffect(() => {
+    // Clear registration_type when year changes
+    if (formData.year === '1') {
+      setFormData(prevData => ({
+        ...prevData,
+        registration_type: 'workshop_contest'
+      }));
+    } else if (formData.registration_type === '') {
+      // If no registration type is selected yet, don't change anything
+      return;
+    }
+  }, [formData.year]);
+
   const validateForm = () => {
     // Email validation for AKGEC domain
     if (!formData.email.endsWith('@akgec.ac.in')) {
-      alert('Please use your AKGEC email address');
+      setError('Please use your AKGEC email address');
       return false;
     }
 
     // Phone number validation (10 digits)
     if (!/^\d{10}$/.test(formData.phone)) {
-      alert('Please enter a valid 10-digit phone number');
+      setError('Please enter a valid 10-digit phone number');
       return false;
     }
 
     // Student number validation (7 or 8 digits)
     if (!/^\d{7,8}$/.test(formData.student_no)) {
-      alert('Please enter a valid 7 or 8-digit student number');
+      setError('Please enter a valid 7 or 8-digit student number');
       return false;
     }
 
     // HackerRank username validation (no spaces or special characters)
     if (!/^[a-zA-Z0-9_-]+$/.test(formData.hackerrank)) {
-      alert('Please enter a valid HackerRank username (no spaces or special characters)');
+      setError('Please enter a valid HackerRank username (no spaces or special characters)');
       return false;
     }
 
@@ -68,7 +120,7 @@ const RegistrationForm = () => {
     e.preventDefault();
     
     if (!recaptchaToken) {
-      alert('Please complete the reCAPTCHA verification');
+      setError('Please complete the reCAPTCHA verification');
       return;
     }
 
@@ -102,17 +154,19 @@ const RegistrationForm = () => {
         body: JSON.stringify(apiData),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.message || 'Registration failed');
+      const data = await response.json().catch(() => ({ message: 'Failed to parse response' }));
+      
+      if (response.status !== 201) {
+        const errorMessage = data.message || data.error || data.detail || 
+                            (typeof data === 'string' ? data : 'Registration failed');
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
       console.log('Registration successful:', data);
       navigate('/success');
     } catch (error: any) {
       console.error('Registration error:', error);
-      alert(error.message || 'Registration failed. Please try again.');
+      setError(error.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -135,6 +189,19 @@ const RegistrationForm = () => {
       return;
     }
 
+    // Handle year change
+    if (name === 'year') {
+      // If changing to 1st year, force registration type to workshop_contest
+      if (value === '1') {
+        setFormData({
+          ...formData,
+          [name]: value,
+          registration_type: 'workshop_contest'
+        });
+        return;
+      }
+    }
+
     setFormData({ ...formData, [name]: value });
   };
 
@@ -142,8 +209,17 @@ const RegistrationForm = () => {
     setRecaptchaToken(token);
   };
 
+  const closeErrorToast = () => {
+    setError(null);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 to-gray-100 py-6 sm:py-8 md:py-12 px-4 sm:px-6 lg:px-8">
+      {/* Error Toast */}
+      <AnimatePresence>
+        {error && <ErrorToast message={error} onClose={closeErrorToast} />}
+      </AnimatePresence>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -164,104 +240,193 @@ const RegistrationForm = () => {
           transition={{ duration: 0.3 }}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-12 gap-y-6 md:gap-y-8">
-            {[
-              { label: 'Full Name', name: 'name', type: 'text', placeholder: 'Enter your full name' },
-              { label: 'Email', name: 'email', type: 'email', placeholder: 'your.email@akgec.ac.in' },
-              { label: 'Phone', name: 'phone', type: 'tel', placeholder: '10-digit phone number' },
-              { 
-                label: 'Year', 
-                name: 'year', 
-                type: 'select',
-                options: [
-                  { value: '', label: 'Select Year' },
-                  { value: '1', label: '1st Year' },
-                  { value: '2', label: '2nd Year' }
-                ]
-              },
-              {
-                label: 'Branch',
-                name: 'branch_name',
-                type: 'select',
-                options: [
-                  { value: '', label: 'Select Branch' },
-                  { value: 'CSE', label: 'CSE' },
-                  { value: 'CSE (AIML)', label: 'CSE (AIML)' },
-                  { value: 'CSE (Hindi)', label: 'CSE (Hindi)' },
-                  { value: 'CSE (DS)', label: 'CSE (DS)' },
-                  { value: 'CS', label: 'CS' },
-                  { value: 'AIML', label: 'AIML' },
-                  { value: 'IT', label: 'IT' },
-                  { value: 'ECE', label: 'ECE' },
-                  { value: 'EE', label: 'EE' },
-                  { value: 'ME', label: 'ME' },
-                  { value: 'CE', label: 'CE' }
-                ]
-              },
-              {
-                label: 'Registration Type',
-                name: 'registration_type',
-                type: 'select',
-                options: [
-                  { value: '', label: 'Select Option' },
-                  { value: 'workshop_contest', label: 'Workshop + Contest' },
-                  { value: 'contest', label: 'Contest Only (Free)' }
-                ]
-              },
-              {
-                label: 'Gender',
-                name: 'gender',
-                type: 'select',
-                options: [
-                  { value: '', label: 'Select Gender' },
-                  { value: 'male', label: 'Male' },
-                  { value: 'female', label: 'Female' },
-                  { value: 'other', label: 'Other' }
-                ]
-              },
-              {
-                label: 'Are you a Hosteller?',
-                name: 'hosteller',
-                type: 'select',
-                options: [
-                  { value: '', label: 'Select Option' },
-                  { value: 'yes', label: 'Yes' },
-                  { value: 'no', label: 'No' }
-                ]
-              },
-              { label: 'HackerRank Profile', name: 'hackerrank', type: 'text', placeholder: 'Your HackerRank username' },
-              { label: 'Student Number', name: 'student_no', type: 'text', placeholder: 'Enter your student number' }
-            ].map((field, index) => (
-              <div key={index} className="space-y-1.5">
-                <label className="block text-base sm:text-lg font-medium text-gray-700">
-                  {field.label}
-                </label>
-                {field.type === 'select' ? (
-                  <select
-                    name={field.name}
-                    required
-                    className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 bg-red-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
-                    value={formData[field.name as keyof FormData]}
-                    onChange={handleChange}
-                  >
-                    {field.options?.map((option, optIndex) => (
-                      <option key={optIndex} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type={field.type}
-                    name={field.name}
-                    required
-                    className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 bg-red-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
-                    value={formData[field.name as keyof FormData]}
-                    onChange={handleChange}
-                    placeholder={field.placeholder}
-                  />
+            {/* Full Name moved to the top */}
+            <div className="space-y-1.5">
+              <label className="block text-base sm:text-lg font-medium text-gray-700">
+                Full Name
+              </label>
+              <input
+                type="text"
+                name="name"
+                required
+                className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 bg-red-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Enter your full name"
+              />
+            </div>
+
+            {/* Email */}
+            <div className="space-y-1.5">
+              <label className="block text-base sm:text-lg font-medium text-gray-700">
+                Email
+              </label>
+              <input
+                type="email"
+                name="email"
+                required
+                className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 bg-red-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="your.email@akgec.ac.in"
+              />
+            </div>
+
+            {/* Year field */}
+            <div className="space-y-1.5">
+              <label className="block text-base sm:text-lg font-medium text-gray-700">
+                Year
+              </label>
+              <select
+                name="year"
+                required
+                className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 bg-red-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
+                value={formData.year}
+                onChange={handleChange}
+              >
+                <option value="">Select Year</option>
+                <option value="1">1st Year</option>
+                <option value="2">2nd Year</option>
+              </select>
+            </div>
+
+            {/* Registration Type field with conditional options */}
+            <div className="space-y-1.5">
+              <label className="block text-base sm:text-lg font-medium text-gray-700">
+                Registration Type
+              </label>
+              <select
+                name="registration_type"
+                required
+                className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 bg-red-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
+                value={formData.registration_type}
+                onChange={handleChange}
+                disabled={formData.year === '1'}
+              >
+                <option value="">Select Option</option>
+                <option value="workshop_contest">Workshop + Contest</option>
+                {formData.year === '2' && (
+                  <option value="contest">Contest Only (Free)</option>
                 )}
-              </div>
-            ))}
+              </select>
+              {formData.year === '1' && formData.registration_type === 'workshop_contest' && (
+                <p className="text-sm text-red-600 mt-1">
+                  First-year students can only register for Workshop + Contest
+                </p>
+              )}
+            </div>
+
+            {/* Phone */}
+            <div className="space-y-1.5">
+              <label className="block text-base sm:text-lg font-medium text-gray-700">
+                Phone
+              </label>
+              <input
+                type="tel"
+                name="phone"
+                required
+                className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 bg-red-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="10-digit phone number"
+              />
+            </div>
+
+            {/* Branch */}
+            <div className="space-y-1.5">
+              <label className="block text-base sm:text-lg font-medium text-gray-700">
+                Branch
+              </label>
+              <select
+                name="branch_name"
+                required
+                className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 bg-red-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
+                value={formData.branch_name}
+                onChange={handleChange}
+              >
+                <option value="">Select Branch</option>
+                <option value="CSE">CSE</option>
+                <option value="CSE (AIML)">CSE (AIML)</option>
+                <option value="CSE (Hindi)">CSE (Hindi)</option>
+                <option value="CSE (DS)">CSE (DS)</option>
+                <option value="CS">CS</option>
+                <option value="AIML">AIML</option>
+                <option value="IT">IT</option>
+                <option value="ECE">ECE</option>
+                <option value="EE">EE</option>
+                <option value="ME">ME</option>
+                <option value="CE">CE</option>
+              </select>
+            </div>
+
+            {/* Gender */}
+            <div className="space-y-1.5">
+              <label className="block text-base sm:text-lg font-medium text-gray-700">
+                Gender
+              </label>
+              <select
+                name="gender"
+                required
+                className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 bg-red-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
+                value={formData.gender}
+                onChange={handleChange}
+              >
+                <option value="">Select Gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            {/* Hosteller */}
+            <div className="space-y-1.5">
+              <label className="block text-base sm:text-lg font-medium text-gray-700">
+                Are you a Hosteller?
+              </label>
+              <select
+                name="hosteller"
+                required
+                className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 bg-red-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
+                value={formData.hosteller}
+                onChange={handleChange}
+              >
+                <option value="">Select Option</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+
+            {/* HackerRank Profile */}
+            <div className="space-y-1.5">
+              <label className="block text-base sm:text-lg font-medium text-gray-700">
+                HackerRank Profile
+              </label>
+              <input
+                type="text"
+                name="hackerrank"
+                required
+                className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 bg-red-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
+                value={formData.hackerrank}
+                onChange={handleChange}
+                placeholder="Your HackerRank username"
+              />
+            </div>
+
+            {/* Student Number */}
+            <div className="space-y-1.5">
+              <label className="block text-base sm:text-lg font-medium text-gray-700">
+                Student Number
+              </label>
+              <input
+                type="text"
+                name="student_no"
+                required
+                className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 bg-red-50/50 p-2.5 sm:p-3 text-base sm:text-lg"
+                value={formData.student_no}
+                onChange={handleChange}
+                placeholder="Enter your student number"
+              />
+            </div>
           </div>
 
           <div className="mt-8 flex justify-center scale-90 sm:scale-100">
