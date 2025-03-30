@@ -76,12 +76,18 @@ const RegistrationForm = () => {
       return;
     }
 
-    // Transform the data to match API schema
+    // Transform the data to exactly match the API schema
     const apiData = {
-      ...formData,
+      name: formData.name,
+      branch_name: formData.branch_name,
       recaptcha_token: recaptchaToken,
+      student_no: formData.student_no,
+      hackerrank: formData.hackerrank,
+      phone: formData.phone,
+      email: formData.email,
+      gender: formData.gender.charAt(0).toUpperCase() + formData.gender.slice(1).toLowerCase(),
       hosteller: formData.hosteller === 'yes' ? 'True' : 'False',
-      gender: formData.gender.charAt(0).toUpperCase() + formData.gender.slice(1),
+      year: formData.year,
       registration_type: formData.registration_type === 'workshop_contest' ? 'contest_workshop' : 'contest'
     };
 
@@ -178,10 +184,15 @@ const RegistrationForm = () => {
                 type: 'select',
                 options: [
                   { value: '', label: 'Select Branch' },
-                  { value: 'CSE(AIML)', label: 'CSE (AIML)' },
                   { value: 'CSE', label: 'CSE' },
+                  { value: 'CSE (AIML)', label: 'CSE (AIML)' },
+                  { value: 'CSE (Hindi)', label: 'CSE (Hindi)' },
+                  { value: 'CSE (DS)', label: 'CSE (DS)' },
+                  { value: 'CS', label: 'CS' },
+                  { value: 'AIML', label: 'AIML' },
                   { value: 'IT', label: 'IT' },
                   { value: 'ECE', label: 'ECE' },
+                  { value: 'EE', label: 'EE' },
                   { value: 'ME', label: 'ME' },
                   { value: 'CE', label: 'CE' }
                 ]
@@ -218,7 +229,7 @@ const RegistrationForm = () => {
                 ]
               },
               { label: 'HackerRank Profile', name: 'hackerrank', type: 'text', placeholder: 'Your HackerRank username' },
-              { label: 'Student Number', name: 'student_no', type: 'text', placeholder: '8-digit student number' }
+              { label: 'Student Number', name: 'student_no', type: 'text', placeholder: 'Enter your student number' }
             ].map((field, index) => (
               <div key={index} className="space-y-1.5">
                 <label className="block text-base sm:text-lg font-medium text-gray-700">
