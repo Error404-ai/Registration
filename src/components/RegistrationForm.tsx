@@ -3,8 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import ReCAPTCHA from 'react-google-recaptcha';
 
-// Updated interface to match backend schema
-interface FormData {
+// Form UI interface - what users interact with
+interface FormUI {
+  fullName: string;
+  email: string;
+  phone: string;
+  year: string;
+  branch: string;
+  registeredFor: string;
+  gender: string;
+  isHosteller: string;
+  hackerRank: string;
+  studentNumber: string;
+}
+
+// Backend API interface - the schema expected by the API
+interface ApiPayload {
   name: string;
   email: string;
   phone: string;
@@ -15,27 +29,47 @@ interface FormData {
   hosteller: string;
   hackerrank: string;
   student_no: string;
+  recaptcha_token: string;
 }
 
 const RegistrationForm = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
-  const [formData, setFormData] = useState<FormData>({
-    name: '',
+  
+  // Initialize with empty form values
+  const [formData, setFormData] = useState<FormUI>({
+    fullName: '',
     email: '',
     phone: '',
     year: '',
-    branch_name: '',
-    registration_type: '',
+    branch: '',
+    registeredFor: '',
     gender: '',
-    hosteller: '',
-    hackerrank: '',
-    student_no: '',
+    isHosteller: '',
+    hackerRank: '',
+    studentNumber: '',
   });
 
   // Get the reCAPTCHA site key from environment variables
   const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+
+  // Transform UI form data to API payload format
+  const createApiPayload = (): ApiPayload => {
+    return {
+      name: formData.fullName,
+      email: formData.email,
+      phone: formData.phone,
+      year: formData.year,
+      branch_name: formData.branch,
+      registration_type: formData.registeredFor,
+      gender: formData.gender,
+      hosteller: formData.isHosteller,
+      hackerrank: formData.hackerRank,
+      student_no: formData.studentNumber,
+      recaptcha_token: recaptchaToken || '',
+    };
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,12 +81,10 @@ const RegistrationForm = () => {
 
     try {
       setIsLoading(true);
-      // Create the payload with the correct field names
-      const payload = {
-        ...formData,
-        recaptcha_token: recaptchaToken,
-      };
-
+      
+      // Create API payload with the correct field names
+      const payload = createApiPayload();
+      
       console.log('Sending payload:', payload);
       
       const response = await fetch('https://api.programming-club.tech/api/register/', {
@@ -63,18 +95,26 @@ const RegistrationForm = () => {
         body: JSON.stringify(payload),
       });
 
+      const responseText = await response.text();
+      console.log('Raw response:', responseText);
+      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        console.error('Server error response:', errorData);
-        throw new Error(`Registration failed: ${response.status} ${response.statusText}`);
+        let errorMessage = `Server returned ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage += ` - ${JSON.stringify(errorData)}`;
+        } catch (e) {
+          // If it's not valid JSON, use the raw text
+          errorMessage += ` - ${responseText}`;
+        }
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
-      console.log('Registration successful:', data);
+      console.log('Registration successful!');
       navigate('/success');
     } catch (error) {
       console.error('Registration error:', error);
-      alert('Registration failed. Please try again.');
+      alert(`Registration failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }
@@ -82,21 +122,7 @@ const RegistrationForm = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    
-    // Map form field names to API field names
-    const fieldMapping: Record<string, keyof FormData> = {
-      fullName: 'name',
-      studentNumber: 'student_no',
-      branch: 'branch_name',
-      registeredFor: 'registration_type',
-      isHosteller: 'hosteller',
-      hackerRank: 'hackerrank',
-    };
-    
-    // Use mapped field name if it exists, otherwise use original name
-    const apiFieldName = fieldMapping[name] || name as keyof FormData;
-    
-    setFormData(prev => ({ ...prev, [apiFieldName]: value }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleRecaptchaChange = (token: string | null) => {
